@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>Atsargų valdymo prietaisas</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',system-ui,sans-serif; background:#DCDCDC; width:100vw; height:100vh; overflow:hidden; font-size:13px; color:#111; display:flex; align-items:center; justify-content:center; }
+.shell { width:1420px; height:680px; display:flex; flex-direction:row; background:#fff; border-radius:10px; box-shadow:0 4px 24px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.07); overflow:hidden; }
+
+/* ── Kairinė navigacija ── */
+.sidebar { width:180px; flex-shrink:0; background:#0D3D35; display:flex; flex-direction:column; padding:0; }
+.sidebar-logo { padding:14px 16px 10px; border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
+.sidebar-nav { display:flex; flex-direction:column; gap:2px; padding:10px 8px; flex:1; }
+.side-tab { padding:9px 12px; border-radius:6px; font-size:12px; color:rgba(255,255,255,0.6); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .12s,color .12s; user-select:none; }
+.side-tab:hover { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.9); }
+.side-tab.active { background:rgba(29,184,138,0.18); color:#1DB88A; font-weight:600; border-left:3px solid #1DB88A; padding-left:9px; }
+.sidebar-bottom { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08); font-size:10px; color:rgba(255,255,255,0.35); }
+
+/* ── Pagrindinis turinys ── */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+.page { display:none; flex-direction:column; flex:1; overflow:hidden; }
+.page.active { display:flex; }
+
+.page-header { display:none; }
+.page-title { display:none; }
+.timestamp { display:none; }
+
+.page-title-bar {
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding:8px 20px 6px 20px;
+  background:#fff; border-bottom:1px solid #E0E0E0; flex-shrink:0;
+}
+.page-title-bar .ptitle { font-size:16px; font-weight:700; color:#0D3D35; }
+.page-title-bar .pts { font-size:11px; color:#bbb; }
+
+.filter-bar { display:flex; align-items:center; background:#fff; border-bottom:1px solid #E0E0E0; flex-shrink:0; padding:0; }
+.filter-title-block { display:none; }
+.filter-inputs { display:flex; align-items:center; gap:8px; padding:6px 20px; flex:1; flex-wrap:nowrap; }
+.fg { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+.fl { font-size:10px; color:#888; font-weight:500; }
+.fi { border:1px solid #E0E0E0; border-radius:4px; padding:3px 7px; font-family:inherit; font-size:11.5px; color:#333; background:#fff; width:88px; height:26px; }
+.fs { border:1px solid #E0E0E0; border-radius:4px; padding:3px 20px 3px 7px; font-family:inherit; font-size:11.5px; color:#333; background:#fff; appearance:none; cursor:pointer; min-width:100px; height:26px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 6px center; }
+.fs:focus, .fi:focus { outline:none; border-color:#1DB88A; }
+
+.kpi-strip { display:flex; gap:10px; padding:8px 20px; flex-shrink:0; }
+.kc { flex:1; background:#fff; border:1px solid #E0E0E0; border-radius:8px; border-bottom:3px solid #E0E0E0; padding:9px 14px 8px; display:flex; flex-direction:column; gap:2px; }
+.kc.crit { border-bottom-color:#DC2626; }
+.kl { font-size:11px; font-weight:600; color:#555; }
+.kv { font-size:26px; font-weight:700; color:#0D3D35; line-height:1.15; }
+.km { font-size:11px; color:#999; }
+
+.content-area { display:flex; gap:10px; padding:0 20px 12px; flex:1; min-height:0; overflow:hidden; align-items:stretch; }
+.panel { background:#fff; border:1px solid #E0E0E0; border-radius:8px; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+.pt { padding:8px 8px 7px 20px; font-size:12px; font-weight:600; color:#0D3D35; border-bottom:1px solid #E0E0E0; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.tw { overflow-x:auto; overflow-y:scroll; flex:1; min-height:0; }
+.tw::-webkit-scrollbar { width:6px; height:6px; }
+.tw::-webkit-scrollbar-track { background:#F5F5F5; border-radius:3px; }
+.tw::-webkit-scrollbar-thumb { background:#C8C8C8; border-radius:3px; }
+.tw::-webkit-scrollbar-thumb:hover { background:#A0A0A0; }
+table { width:max-content; min-width:100%; border-collapse:collapse; font-size:12px; table-layout:auto; }
+thead th { position:sticky; top:0; background:#F8F7F6; padding:6px 8px; text-align:left; font-weight:600; color:#6B7280; border-bottom:2px solid #E0E0E0; white-space:nowrap; font-size:11px; z-index:1; }
+tbody tr { border-bottom:1px solid #F0EFED; cursor:pointer; background:#fff; transition:background .1s; }
+tbody tr:hover { background:#F8F8F8; }
+tbody tr.selected { background:#EDFAF5; }
+tbody td { padding:5px 8px; color:#333; font-size:11px; white-space:nowrap; }
+
+/* Statusų langelių spalvos */
+.td-ok { background:#DCFCE7; color:#166534; font-weight:600; font-size:11px; white-space:nowrap; padding:5px 8px; }
+.td-wa { background:#FEF3C7; color:#92400E; font-weight:600; font-size:11px; white-space:nowrap; padding:5px 8px; }
+.td-cr { background:#FEE2E2; color:#991B1B; font-weight:600; font-size:11px; white-space:nowrap; padding:5px 8px; }
+.ok { color:#1DB88A; font-weight:600; }
+.wa { color:#D97706; font-weight:600; }
+.cr { color:#DC2626; font-weight:600; }
+
+.leg { display:flex; gap:14px; padding:5px 14px 3px; flex-shrink:0; }
+.li { display:flex; align-items:center; gap:5px; font-size:11px; color:#555; }
+.ld { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.no-data { display:none; align-items:center; justify-content:center; flex:1; font-size:12px; color:#999; font-style:italic; }
+.clear-btn { display:none; align-items:center; gap:4px; margin-left:auto; padding:3px 10px; font-family:inherit; font-size:11px; color:#555; background:#fff; border:1px solid #E0E0E0; border-radius:4px; cursor:pointer; white-space:nowrap; height:26px; flex-shrink:0; }
+.clear-btn:hover { background:#F5F5F5; border-color:#bbb; color:#111; }
+.clear-btn.visible { display:flex; }
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:#F5F5F5; }
+::-webkit-scrollbar-thumb { background:#D0D0D0; border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── Kairinė navigacija ── -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <svg width="72" height="22" viewBox="0 0 72 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="0" y="18" font-family="'Segoe UI',Arial,sans-serif" font-weight="800" font-size="20" font-style="italic" fill="#1DB88A" letter-spacing="-0.5">MEKO</text>
+    </svg>
+  </div>
+  <div class="sidebar-nav">
+    <div class="side-tab active" onclick="sp(0)">📦 Atsargų likučiai</div>
+    <div class="side-tab" onclick="sp(1)">⚠️ Trūkstamos prekės</div>
+    <div class="side-tab" onclick="sp(2)">📊 Neatitikimai ir rekomendacijos</div>
+  </div>
+  <div class="sidebar-bottom">MEKO Baltics<br>Atsargų valdymas</div>
+</div>
+
+<!-- ── Pagrindinis turinys ── -->
+<div class="main">
+
+<!-- ══════ P1 — Atsargų likučiai ══════ -->
+<div class="page active" id="p0">
+  <div class="page-header"><span class="page-title"></span></div>
+  <div class="page-title-bar">
+    <span class="ptitle">Atsargų likučiai</span>
+    <span class="pts">Atnaujinta: 2026-08-19 08:45</span>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-inputs">
+      <div class="fg"><div class="fl">Pradžios data</div><input class="fi" value="01.01.2024" readonly></div>
+      <div class="fg"><div class="fl">Pabaigos data</div><input class="fi" value="31.12.2024" readonly></div>
+      <div class="fg"><div class="fl">Prekės grupė</div>
+        <select class="fs" id="p1grupe" onchange="p1filter()">
+          <option value="">Select All</option>
+          <option>IT įranga</option><option>Periferija</option>
+          <option>Priedai</option><option>Laikmenos</option><option>Biuro technika</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Prekės kodas</div>
+        <select class="fs" id="p1kodas" onchange="p1filter()">
+          <option value="">Select All</option>
+          <option>IT-001</option><option>IT-002</option><option>IT-003</option>
+          <option>IT-004</option><option>IT-005</option><option>IT-006</option>
+          <option>IT-007</option><option>IT-008</option><option>IT-009</option>
+          <option>IT-010</option><option>IT-011</option><option>IT-012</option>
+          <option>OF-001</option><option>OF-002</option><option>OF-003</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Prekė</div>
+        <select class="fs" id="p1preke" onchange="p1filter()">
+          <option value="">Select All</option>
+          <option>Laptopas Dell XPS 13</option><option>Monitorius LG 27 col.</option>
+          <option>Klaviatūra Logitech MX</option><option>Ausinės Sony WH-1000XM5</option>
+          <option>Pelė Razer DeathAdder</option><option>Monitorius Dell 24 col.</option>
+          <option>USB-C šakotuvas Anker</option><option>Nešiojamas kietasis diskas</option>
+          <option>Spausdintuvas HP LaserJet</option><option>Planšetė Samsung Tab S9</option>
+          <option>Pelė Logitech MX Master</option><option>Projekcinis ekranas 100"</option>
+          <option>HDMI kabelis 2m</option><option>USB atmintinė 64GB</option>
+          <option>Lazerinė pelė prezentacijoms</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Sandėlis</div>
+        <select class="fs" id="p1sandelis" onchange="p1filter()">
+          <option value="">Select All</option>
+          <option>Vilniaus sandėlis</option><option>Kauno sandėlis</option>
+          <option>Klaipėdos sandėlis</option><option>Šiaulių sandėlis</option><option>Panevėžio sandėlis</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Statusas</div>
+        <select class="fs" id="p1nukr" onchange="p1filter()">
+          <option value="">Select All</option><option value="Viršyta">Trūkumas</option>
+          <option value="Dėmesio">Dėmesio</option><option value="Norma">Norma</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Judėjimo tipas</div>
+        <select class="fs" id="p1jud" onchange="p1filter()">
+          <option value="">Select All</option><option>Priėmimas</option><option>Išdavimas</option>
+          <option>Perkėlimas</option><option>Grąžinimas</option>
+        </select>
+      </div>
+      <button class="clear-btn" id="p1clear" onclick="p1clear()">✕ Išvalyti</button>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kc">
+      <div class="kl">Bendras likutis (vnt.)</div>
+      <div class="kv" id="k1a">157</div>
+      <div class="km">visi sandėliai, visos prekės</div>
+    </div>
+    <div class="kc crit">
+      <div class="kl">Prekių su trūkumu (vnt.)</div>
+      <div class="kv" id="k2a">4</div>
+      <div class="km">žemiau minimalaus lygio</div>
+    </div>
+    <div class="kc">
+      <div class="kl">Prekių normoje (vnt.)</div>
+      <div class="kv" id="k3a">4</div>
+      <div class="km">atitinka MIN–MAX ribas</div>
+    </div>
+    <div class="kc">
+      <div class="kl">Aktyvūs sandėliai (vnt.)</div>
+      <div class="kv" id="k4a">5</div>
+      <div class="km">su likučiais</div>
+    </div>
+  </div>
+
+  <div class="content-area">
+
+    <div class="panel" style="flex:1.2;">
+      <div class="pt">Likučiai pagal prekę ir sandėlį</div>
+      <div class="tw">
+        <table id="p1matrix" style="font-size:10px;width:max-content;min-width:100%;table-layout:auto;border-collapse:collapse;">
+          <thead><tr style="background:#F8F7F6;">
+            <th style="color:#6B7280;font-weight:600;padding:0 6px;height:36px;border-bottom:2px solid #E0E0E0;width:18px;"></th>
+            <th style="color:#6B7280;font-weight:600;padding:0 6px;height:36px;border-bottom:2px solid #E0E0E0;text-align:left;white-space:nowrap;">Prekė</th>
+            <th style="color:#6B7280;font-weight:600;padding:0 6px;height:36px;border-bottom:2px solid #E0E0E0;text-align:right;white-space:nowrap;">Bendras kiekis (vnt.)</th>
+            <th style="color:#6B7280;font-weight:600;padding:0 6px;height:36px;border-bottom:2px solid #E0E0E0;text-align:right;white-space:nowrap;">MIN (vnt.)</th>
+          </tr></thead>
+          <tbody id="p1tbody"></tbody>
+        </table>
+      </div>
+      <div class="no-data" id="p1nodata">Nėra duomenų pagal pasirinktus filtrus</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;flex:0.95;min-width:0;">
+      <div class="panel" style="flex:1;">
+        <div class="pt">Perkėlimo rekomendacijos</div>
+        <div class="tw">
+          <table style="font-size:10px;width:max-content;min-width:100%;table-layout:auto;border-collapse:collapse;">
+            <thead><tr>
+              <th style="white-space:nowrap;padding:6px 6px;">Prekė</th>
+              <th style="white-space:nowrap;padding:6px 6px;">Iš sandėlio</th>
+              <th style="white-space:nowrap;padding:6px 6px;">Į sandėlį</th>
+              <th style="white-space:nowrap;padding:6px 6px;">Kiekis</th>
+            </tr></thead>
+            <tbody id="p1rec"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel" style="flex:1.2;">
+        <div class="pt">Likučių pasiskirstymas pagal sandėlį</div>
+        <div id="p1bars" style="padding:8px 10px 6px;display:flex;flex-direction:column;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1.35;">
+      <div class="pt">Prekių judėjimo ataskaita</div>
+      <div class="tw">
+        <table style="font-size:10px;width:max-content;min-width:100%;table-layout:auto;border-collapse:collapse;">
+          <thead><tr>
+            <th style="white-space:nowrap;padding:6px 6px;">Data</th>
+            <th style="white-space:nowrap;padding:6px 6px;">Prekė</th>
+            <th style="white-space:nowrap;padding:6px 6px;">Iš sandėlio</th>
+            <th style="white-space:nowrap;padding:6px 6px;">Į sandėlį</th>
+            <th style="white-space:nowrap;padding:6px 6px;">Tipas</th>
+            <th style="white-space:nowrap;padding:6px 6px;">Kiekis (vnt.)</th>
+          </tr></thead>
+          <tbody id="p1mov"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /p0 -->
+
+
+<!-- ══════ P2 — Trūkstamos prekės ══════ -->
+<div class="page" id="p1">
+  <div class="page-header"><span class="page-title"></span></div>
+  <div class="page-title-bar">
+    <span class="ptitle">Trūkstamos prekės</span>
+    <span class="pts">Atnaujinta: 2026-08-19 08:45</span>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-inputs">
+      <div class="fg"><div class="fl">Prekės grupė</div>
+        <select class="fs" id="p2grupe" onchange="p2filter()">
+          <option value="">Select All</option>
+          <option>Metalas</option><option>Plastmasė</option><option>Elektra</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Prekės kodas</div>
+        <select class="fs" id="p2kodas" onchange="p2filter()">
+          <option value="">Select All</option>
+          <option>MET-001</option><option>MET-002</option><option>MET-003</option>
+          <option>MET-004</option><option>MET-005</option>
+          <option>PLA-001</option><option>PLA-002</option><option>PLA-003</option><option>PLA-004</option>
+          <option>ELE-001</option><option>ELE-002</option><option>ELE-003</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Prekė</div>
+        <select class="fs" id="p2preke" onchange="p2filter()">
+          <option value="">Select All</option><option>Prekė A</option><option>Prekė B</option>
+          <option>Prekė C</option><option>Prekė D</option><option>Prekė E</option>
+          <option>Prekė F</option><option>Prekė G</option><option>Prekė H</option>
+          <option>Prekė I</option><option>Prekė J</option><option>Prekė K</option><option>Prekė L</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Iš sandėlio</div>
+        <select class="fs" id="p2is" onchange="p2filter()">
+          <option value="">Select All</option><option>Sandėlis-1</option><option>Sandėlis-2</option><option>Sandėlis-3</option><option>Sandėlis-4</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Į sandėlį</div>
+        <select class="fs" id="p2i" onchange="p2filter()">
+          <option value="">Select All</option><option>Sandėlis-1</option><option>Sandėlis-2</option><option>Sandėlis-3</option><option>Sandėlis-4</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Trūkumo tipas</div>
+        <select class="fs" id="p2rez" onchange="p2filter()">
+          <option value="">Select All</option><option>Patvirtinta</option><option>Laukiama</option><option>Atšaukta</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Statusas</div>
+        <select class="fs" id="p2nukr" onchange="p2filter()">
+          <option value="">Select All</option><option value="Viršyta">Trūkumas</option><option value="Dėmesio">Dėmesio</option><option value="Norma">Norma</option>
+        </select>
+      </div>
+      <button class="clear-btn" id="p2clear" onclick="p2clear()">✕ Išvalyti</button>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kc crit" style="flex:1.1;">
+      <div class="kl">Trūkstamų prekių skaičius (vnt.)</div>
+      <div class="kv" id="p2k1">1</div>
+      <div class="km">žemiau minimalaus lygio</div>
+    </div>
+    <div class="kc" style="flex:1.1;">
+      <div class="kl">Perkėlimo rekomendacijos (vnt.)</div>
+      <div class="kv" id="p2k2">3</div>
+      <div class="km">galimi perkėlimai tarp sandėlių</div>
+    </div>
+    <div class="kc" style="flex:1.1;">
+      <div class="kl">Sandėliai su trūkumu (vnt.)</div>
+      <div class="kv" id="p2k3">2</div>
+      <div class="km">sandėliai, kuriuose trūksta prekių</div>
+    </div>
+  </div>
+
+  <div class="content-area">
+    <div class="panel" style="flex:1.55;">
+      <div class="pt">Trūkstamų prekių sąrašas (MIN / MAX / faktinis likutis)</div>
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th style="min-width:60px;">Kodas</th>
+            <th style="min-width:90px;">Grupė</th>
+            <th>Prekė</th><th>Iš sand.</th><th>Į sand.</th>
+            <th>Kiekis (vnt.)</th><th>Dab. lik. iš (vnt.)</th>
+            <th>MIN</th><th>MAX</th><th style="min-width:86px;">Statusas</th>
+          </tr></thead>
+          <tbody id="p2tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:0.6;">
+      <div class="pt">Faktinis likutis vs MIN pagal sandėlį</div>
+      <div id="p2chart" style="flex:1;padding:8px 16px 4px;display:flex;flex-direction:column;gap:8px;justify-content:center;min-height:0;"></div>
+      <div style="padding:4px 0 8px;display:flex;gap:16px;justify-content:center;align-items:center;">
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#555;"><div style="width:10px;height:10px;background:#1DB88A;border-radius:2px;"></div>Faktinis</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#555;"><div style="width:10px;height:10px;background:#94A3B8;border-radius:2px;"></div>MIN</div>
+      </div>
+    </div>
+  </div>
+</div><!-- /p1 -->
+
+
+<!-- ══════ P3 — Neatitikimai ir rekomendacijos ══════ -->
+<div class="page" id="p2">
+  <div class="page-header"><span class="page-title"></span></div>
+  <div class="page-title-bar">
+    <span class="ptitle">Atsargų neatitikimai ir rekomendacijos</span>
+    <span class="pts">Atnaujinta: 2026-08-19 08:45</span>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-inputs">
+      <div class="fg"><div class="fl">Pradžia</div><input class="fi" value="01.06.2023" readonly></div>
+      <div class="fg"><div class="fl">Pabaiga</div><input class="fi" value="30.06.2023" readonly></div>
+      <div class="fg"><div class="fl">Prekės grupė</div>
+        <select class="fs" id="p3grupe" onchange="p3filter()">
+          <option value="">Select All</option>
+          <option>Varžtai</option><option>Veržlės</option><option>Jungtys</option><option>Aliuminis</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Prekės kodas</div>
+        <select class="fs" id="p3kodas" onchange="p3filter()">
+          <option value="">Select All</option>
+          <option>MET-101</option><option>MET-102</option><option>MET-103</option>
+          <option>MET-104</option><option>MET-105</option>
+          <option>MET-201</option><option>MET-202</option><option>MET-203</option>
+          <option>MET-301</option><option>MET-302</option><option>MET-303</option>
+          <option>ALU-001</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Prekė</div>
+        <select class="fs" id="p3preke" onchange="p3filter()">
+          <option value="">Select All</option>
+          <option>Varžtas M8x30</option><option>Veržlė M8</option>
+          <option>Sraigtinis jungtis 10mm</option><option>Varžtas M6x20</option>
+          <option>Aliuminio profilis 40x40</option><option>Veržlė M6</option>
+          <option>Varžtas M10x50</option><option>Žalvarinė jungtis</option>
+          <option>Nerūdijančio plieno varžtas</option><option>Veržlė M10</option>
+          <option>Varžtas M12x80</option><option>Sraigtinis jungtis 15mm</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Sandėlis</div>
+        <select class="fs" id="p3sandelis" onchange="p3filter()">
+          <option value="">Select All</option><option>Sandėlis A</option><option>Sandėlis B</option><option>Sandėlis C</option>
+        </select>
+      </div>
+      <button class="clear-btn" id="p3clear" onclick="p3clear()">✕ Išvalyti</button>
+    </div>
+  </div>
+
+  <!-- P3 KPI -->
+  <div class="kpi-strip">
+    <div class="kc">
+      <div class="kl">Prekių su pertekliumi (vnt.)</div>
+      <div class="kv" id="p3k1">8</div>
+      <div class="km">atsargų pakaktų daugiau nei 2 metams</div>
+    </div>
+    <div class="kc crit">
+      <div class="kl">Prekių su trūkumu (vnt.)</div>
+      <div class="kv" id="p3k2">4</div>
+      <div class="km">žemiau minimalaus lygio</div>
+    </div>
+    <div class="kc">
+      <div class="kl">Perkėlimo rekomendacijos (vnt.)</div>
+      <div class="kv" id="p3k3">5</div>
+      <div class="km">galimi perkėlimai tarp sandėlių</div>
+    </div>
+  </div>
+
+  <div class="content-area">
+    <div class="panel" style="flex:1.3;">
+      <div class="pt">Atsargų neatitikimų sąrašas</div>
+      <div class="tw">
+        <table style="font-size:10px;width:100%;table-layout:auto;">
+          <thead><tr>
+            <th style="white-space:nowrap;">Kodas</th>
+            <th style="white-space:nowrap;">Grupė</th>
+            <th style="white-space:nowrap;">Prekė</th>
+            <th style="white-space:nowrap;">Sand.</th>
+            <th style="white-space:nowrap;">Lik.</th>
+            <th style="white-space:nowrap;">MIN</th>
+            <th style="white-space:nowrap;">MAX</th>
+            <th style="white-space:nowrap;">Ats. laikas</th>
+            <th style="white-space:nowrap;">Statusas</th>
+          </tr></thead>
+          <tbody id="p3tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;flex:0.85;min-width:0;">
+
+      <!-- Perkėlimo rekomendacijos -->
+      <div class="panel" style="flex:1.1;">
+        <div class="pt">Perkėlimo rekomendacijos</div>
+        <div class="tw">
+          <table style="font-size:10px;width:100%;table-layout:auto;">
+            <thead><tr>
+              <th style="white-space:nowrap;">Prekė</th>
+              <th style="white-space:nowrap;">Iš sandėlio</th>
+              <th style="white-space:nowrap;">Į sandėlį</th>
+              <th style="white-space:nowrap;">Rek. kiekis</th>
+            </tr></thead>
+            <tbody>
+              <tr onclick="rowSel(this)"><td>Laptopas Dell XPS 13</td><td>Kauno sand.</td><td>Vilniaus sand.</td><td class="n">12</td></tr>
+              <tr onclick="rowSel(this)"><td>Monitorius LG 27 col.</td><td>Klaipėdos sand.</td><td>Kauno sand.</td><td class="n">8</td></tr>
+              <tr onclick="rowSel(this)"><td>Ausinės Sony WH-1000XM5</td><td>Panevėžio sand.</td><td>Šiaulių sand.</td><td class="n">5</td></tr>
+              <tr onclick="rowSel(this)"><td>Nešiojamas kietasis diskas</td><td>Vilniaus sand.</td><td>Kauno sand.</td><td class="n">6</td></tr>
+              <tr onclick="rowSel(this)"><td>Spausdintuvas HP LaserJet</td><td>Šiaulių sand.</td><td>Klaipėdos sand.</td><td class="n">3</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Statusų pasiskirstymas -->
+      <div class="panel" style="flex:0.8;">
+        <div class="pt">Statusų pasiskirstymas</div>
+        <div id="p3statChart" style="flex:1;padding:8px 14px;display:flex;flex-direction:column;gap:6px;justify-content:center;"></div>
+      </div>
+
+      <!-- Atsargų laikas -->
+      <div class="panel" style="flex:0.8;">
+        <div class="pt">Atsargų laikas (prekių sk.)</div>
+        <div id="p3laikasChart" style="flex:1;padding:8px 14px;display:flex;flex-direction:column;gap:6px;justify-content:center;"></div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /p2 -->
+
+<script>
+// ─── DUOMENYS ────────────────────────────────────────────
+const STOCK=[
+  {kodas:'IT-001',grupe:'IT įranga',preke:'Laptopas Dell XPS 13',sandelis:'Vilniaus sandėlis',kiekis:5,min:15,max:40,status:'Viršyta'},
+  {kodas:'IT-001',grupe:'IT įranga',preke:'Laptopas Dell XPS 13',sandelis:'Kauno sandėlis',kiekis:3,min:15,max:40,status:'Viršyta'},
+  {kodas:'IT-002',grupe:'IT įranga',preke:'Monitorius LG 27 col.',sandelis:'Kauno sandėlis',kiekis:8,min:12,max:35,status:'Viršyta'},
+  {kodas:'IT-002',grupe:'IT įranga',preke:'Monitorius LG 27 col.',sandelis:'Klaipėdos sandėlis',kiekis:4,min:12,max:35,status:'Viršyta'},
+  {kodas:'IT-003',grupe:'Periferija',preke:'Klaviatūra Logitech MX',sandelis:'Klaipėdos sandėlis',kiekis:22,min:10,max:30,status:'Norma'},
+  {kodas:'IT-003',grupe:'Periferija',preke:'Klaviatūra Logitech MX',sandelis:'Vilniaus sandėlis',kiekis:8,min:10,max:30,status:'Norma'},
+  {kodas:'IT-004',grupe:'Periferija',preke:'Ausinės Sony WH-1000XM5',sandelis:'Šiaulių sandėlis',kiekis:3,min:8,max:25,status:'Viršyta'},
+  {kodas:'IT-005',grupe:'Periferija',preke:'Pelė Razer DeathAdder',sandelis:'Panevėžio sandėlis',kiekis:18,min:10,max:20,status:'Norma'},
+  {kodas:'IT-005',grupe:'Periferija',preke:'Pelė Razer DeathAdder',sandelis:'Vilniaus sandėlis',kiekis:7,min:10,max:20,status:'Viršyta'},
+  {kodas:'IT-006',grupe:'IT įranga',preke:'Monitorius Dell 24 col.',sandelis:'Vilniaus sandėlis',kiekis:45,min:15,max:40,status:'Dėmesio'},
+  {kodas:'IT-007',grupe:'Priedai',preke:'USB-C šakotuvas Anker',sandelis:'Kauno sandėlis',kiekis:31,min:20,max:60,status:'Norma'},
+  {kodas:'IT-007',grupe:'Priedai',preke:'USB-C šakotuvas Anker',sandelis:'Vilniaus sandėlis',kiekis:14,min:20,max:60,status:'Viršyta'},
+  {kodas:'IT-008',grupe:'Laikmenos',preke:'Nešiojamas kietasis diskas',sandelis:'Vilniaus sandėlis',kiekis:7,min:10,max:30,status:'Viršyta'},
+  {kodas:'OF-001',grupe:'Biuro technika',preke:'Spausdintuvas HP LaserJet',sandelis:'Klaipėdos sandėlis',kiekis:4,min:5,max:12,status:'Dėmesio'},
+  {kodas:'IT-009',grupe:'IT įranga',preke:'Planšetė Samsung Tab S9',sandelis:'Šiaulių sandėlis',kiekis:11,min:8,max:20,status:'Norma'},
+  {kodas:'IT-010',grupe:'IT įranga',preke:'Pelė Logitech MX Master',sandelis:'Vilniaus sandėlis',kiekis:19,min:10,max:30,status:'Norma'},
+  {kodas:'IT-010',grupe:'IT įranga',preke:'Pelė Logitech MX Master',sandelis:'Kauno sandėlis',kiekis:6,min:10,max:30,status:'Viršyta'},
+  {kodas:'OF-002',grupe:'Biuro technika',preke:'Projekcinis ekranas 100"',sandelis:'Vilniaus sandėlis',kiekis:2,min:3,max:8,status:'Viršyta'},
+  {kodas:'IT-011',grupe:'Priedai',preke:'HDMI kabelis 2m',sandelis:'Kauno sandėlis',kiekis:34,min:20,max:50,status:'Norma'},
+  {kodas:'IT-011',grupe:'Priedai',preke:'HDMI kabelis 2m',sandelis:'Klaipėdos sandėlis',kiekis:12,min:20,max:50,status:'Viršyta'},
+  {kodas:'IT-012',grupe:'Laikmenos',preke:'USB atmintinė 64GB',sandelis:'Panevėžio sandėlis',kiekis:28,min:15,max:40,status:'Norma'},
+  {kodas:'OF-003',grupe:'Biuro technika',preke:'Lazerinė pelė prezentacijoms',sandelis:'Šiaulių sandėlis',kiekis:5,min:4,max:10,status:'Norma'},
+];
+const RECS=[
+  {kodas:'IT-001',grupe:'IT įranga',preke:'Laptopas Dell XPS 13',is:'Kauno sand.',i:'Vilniaus sand.',kiekis:12},
+  {kodas:'IT-002',grupe:'IT įranga',preke:'Monitorius LG 27 col.',is:'Klaipėdos sand.',i:'Kauno sand.',kiekis:8},
+  {kodas:'IT-004',grupe:'Periferija',preke:'Ausinės Sony WH-1000XM5',is:'Panevėžio sand.',i:'Šiaulių sand.',kiekis:5},
+  {kodas:'IT-008',grupe:'Laikmenos',preke:'Nešiojamas kietasis diskas',is:'Vilniaus sand.',i:'Kauno sand.',kiekis:6},
+  {kodas:'OF-001',grupe:'Biuro technika',preke:'Spausdintuvas HP LaserJet',is:'Šiaulių sand.',i:'Klaipėdos sand.',kiekis:3},
+];
+const MOVES=[
+  {kodas:'IT-001',grupe:'IT įranga',data:'2024-12-15',preke:'Laptopas Dell XPS 13',is:'Tiekėjas',i:'Vilniaus sandėlis',tipas:'Priėmimas',kiekis:25},
+  {kodas:'IT-002',grupe:'IT įranga',data:'2024-12-14',preke:'Monitorius LG 27 col.',is:'Kauno sandėlis',i:'Klientas',tipas:'Išdavimas',kiekis:12},
+  {kodas:'IT-003',grupe:'Periferija',data:'2024-12-13',preke:'Klaviatūra Logitech MX',is:'Vilniaus sandėlis',i:'Klaipėdos sandėlis',tipas:'Perkėlimas',kiekis:8},
+  {kodas:'IT-004',grupe:'Periferija',data:'2024-12-12',preke:'Ausinės Sony WH-1000XM5',is:'Klientas',i:'Šiaulių sandėlis',tipas:'Grąžinimas',kiekis:5},
+  {kodas:'IT-005',grupe:'Periferija',data:'2024-12-11',preke:'Pelė Razer DeathAdder',is:'Tiekėjas',i:'Panevėžio sandėlis',tipas:'Priėmimas',kiekis:30},
+  {kodas:'IT-006',grupe:'IT įranga',data:'2024-12-10',preke:'Monitorius Dell 24 col.',is:'Vilniaus sandėlis',i:'Klientas',tipas:'Išdavimas',kiekis:6},
+  {kodas:'IT-007',grupe:'Priedai',data:'2024-12-09',preke:'USB-C šakotuvas Anker',is:'Tiekėjas',i:'Kauno sandėlis',tipas:'Priėmimas',kiekis:50},
+  {kodas:'IT-008',grupe:'Laikmenos',data:'2024-12-08',preke:'Nešiojamas kietasis diskas',is:'Vilniaus sandėlis',i:'Kauno sandėlis',tipas:'Perkėlimas',kiekis:10},
+  {kodas:'OF-001',grupe:'Biuro technika',data:'2024-12-07',preke:'Spausdintuvas HP LaserJet',is:'Klaipėdos sandėlis',i:'Klientas',tipas:'Išdavimas',kiekis:2},
+  {kodas:'IT-009',grupe:'IT įranga',data:'2024-12-06',preke:'Planšetė Samsung Tab S9',is:'Tiekėjas',i:'Šiaulių sandėlis',tipas:'Priėmimas',kiekis:15},
+  {kodas:'IT-010',grupe:'IT įranga',data:'2024-12-05',preke:'Pelė Logitech MX Master',is:'Tiekėjas',i:'Vilniaus sandėlis',tipas:'Priėmimas',kiekis:20},
+  {kodas:'IT-011',grupe:'Priedai',data:'2024-12-04',preke:'HDMI kabelis 2m',is:'Kauno sandėlis',i:'Klientas',tipas:'Išdavimas',kiekis:15},
+  {kodas:'IT-012',grupe:'Laikmenos',data:'2024-12-03',preke:'USB atmintinė 64GB',is:'Tiekėjas',i:'Panevėžio sandėlis',tipas:'Priėmimas',kiekis:30},
+  {kodas:'OF-002',grupe:'Biuro technika',data:'2024-12-02',preke:'Projekcinis ekranas 100"',is:'Vilniaus sandėlis',i:'Klientas',tipas:'Išdavimas',kiekis:1},
+  {kodas:'IT-003',grupe:'Periferija',data:'2024-12-01',preke:'Klaviatūra Logitech MX',is:'Tiekėjas',i:'Vilniaus sandėlis',tipas:'Priėmimas',kiekis:10},
+];
+const P2DATA=[
+  {kodas:'MET-001',grupe:'Metalas',preke:'Prekė A',is:'Sandėlis-1',i:'Sandėlis-2',kiekis:145,lik:287,min:100,max:300,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'MET-002',grupe:'Metalas',preke:'Prekė B',is:'Sandėlis-1',i:'Sandėlis-3',kiekis:98,lik:156,min:80,max:200,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'PLA-001',grupe:'Plastmasė',preke:'Prekė C',is:'Sandėlis-2',i:'Sandėlis-1',kiekis:67,lik:189,min:120,max:250,status:'Dėmesio',rez:'Laukiama'},
+  {kodas:'PLA-002',grupe:'Plastmasė',preke:'Prekė D',is:'Sandėlis-2',i:'Sandėlis-4',kiekis:112,lik:334,min:150,max:320,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'MET-003',grupe:'Metalas',preke:'Prekė E',is:'Sandėlis-3',i:'Sandėlis-1',kiekis:54,lik:201,min:90,max:210,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'MET-004',grupe:'Metalas',preke:'Prekė F',is:'Sandėlis-3',i:'Sandėlis-2',kiekis:89,lik:267,min:110,max:280,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'ELE-001',grupe:'Elektra',preke:'Prekė G',is:'Sandėlis-4',i:'Sandėlis-1',kiekis:76,lik:223,min:100,max:240,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'ELE-002',grupe:'Elektra',preke:'Prekė H',is:'Sandėlis-4',i:'Sandėlis-3',kiekis:134,lik:412,min:200,max:430,status:'Dėmesio',rez:'Laukiama'},
+  {kodas:'PLA-003',grupe:'Plastmasė',preke:'Prekė I',is:'Sandėlis-1',i:'Sandėlis-4',kiekis:45,lik:178,min:75,max:190,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'MET-005',grupe:'Metalas',preke:'Prekė J',is:'Sandėlis-2',i:'Sandėlis-3',kiekis:63,lik:142,min:60,max:160,status:'Norma',rez:'Patvirtinta'},
+  {kodas:'ELE-003',grupe:'Elektra',preke:'Prekė K',is:'Sandėlis-3',i:'Sandėlis-4',kiekis:29,lik:98,min:40,max:110,status:'Viršyta',rez:'Laukiama'},
+  {kodas:'PLA-004',grupe:'Plastmasė',preke:'Prekė L',is:'Sandėlis-4',i:'Sandėlis-2',kiekis:87,lik:310,min:130,max:330,status:'Dėmesio',rez:'Laukiama'},
+];
+const P3DATA=[
+  {kodas:'MET-101',grupe:'Varžtai',data:'14.06.2023',preke:'Varžtas M8x30',sandelis:'Sandėlis A',tipas:'Išdavimas',kiekis:450},
+  {kodas:'MET-201',grupe:'Veržlės',data:'13.06.2023',preke:'Veržlė M8',sandelis:'Sandėlis B',tipas:'Gavimas',kiekis:820},
+  {kodas:'MET-301',grupe:'Jungtys',data:'12.06.2023',preke:'Sraigtinis jungtis 10mm',sandelis:'Sandėlis C',tipas:'Išdavimas',kiekis:320},
+  {kodas:'MET-102',grupe:'Varžtai',data:'11.06.2023',preke:'Varžtas M6x20',sandelis:'Sandėlis A',tipas:'Gavimas',kiekis:650},
+  {kodas:'ALU-001',grupe:'Aliuminis',data:'10.06.2023',preke:'Aliuminio profilis 40x40',sandelis:'Sandėlis B',tipas:'Išdavimas',kiekis:280},
+  {kodas:'MET-202',grupe:'Veržlės',data:'09.06.2023',preke:'Veržlė M6',sandelis:'Sandėlis C',tipas:'Gavimas',kiekis:540},
+  {kodas:'MET-103',grupe:'Varžtai',data:'08.06.2023',preke:'Varžtas M10x50',sandelis:'Sandėlis A',tipas:'Išdavimas',kiekis:390},
+  {kodas:'MET-302',grupe:'Jungtys',data:'07.06.2023',preke:'Žalvarinė jungtis',sandelis:'Sandėlis B',tipas:'Gavimas',kiekis:710},
+  {kodas:'MET-104',grupe:'Varžtai',data:'06.06.2023',preke:'Nerūdijančio plieno varžtas',sandelis:'Sandėlis C',tipas:'Išdavimas',kiekis:220},
+  {kodas:'MET-203',grupe:'Veržlės',data:'05.06.2023',preke:'Veržlė M10',sandelis:'Sandėlis A',tipas:'Gavimas',kiekis:430},
+  {kodas:'MET-105',grupe:'Varžtai',data:'04.06.2023',preke:'Varžtas M12x80',sandelis:'Sandėlis B',tipas:'Išdavimas',kiekis:160},
+  {kodas:'MET-303',grupe:'Jungtys',data:'03.06.2023',preke:'Sraigtinis jungtis 15mm',sandelis:'Sandėlis C',tipas:'Gavimas',kiekis:890},
+];
+const SANDELIA=['Vilniaus sandėlis','Kauno sandėlis','Klaipėdos sandėlis','Šiaulių sandėlis','Panevėžio sandėlis'];
+
+// ─── UTILS ───────────────────────────────────────────────
+// Statusas skaičiuojamas automatiškai iš kiekio, MIN, MAX
+function calcStatus(kiekis, min, max){
+  if(kiekis < min) return 'Trūkumas';
+  if(kiekis > max) return 'Perteklius';
+  return 'Norma';
+}
+function scls(s){
+  if(s==='Norma') return 'td-ok';
+  if(s==='Perteklius') return 'td-wa';
+  return 'td-cr'; // Trūkumas
+}
+function slbl(s){
+  if(s==='Norma') return '✓ Norma';
+  if(s==='Perteklius') return '↑ Perteklius';
+  return '↓ Trūkumas';
+}
+function rowSel(tr){tr.parentNode.querySelectorAll('tr').forEach(r=>r.classList.remove('selected'));tr.classList.add('selected');}
+function fmtDate(d){
+  if(!d) return d;
+  const p=d.split('.');
+  if(p.length===3) return `${p[2]}-${p[1]}-${p[0]}`;
+  return d;
+}
+
+// ─── P1 ──────────────────────────────────────────────────
+function p1filter(){
+  const gr=document.getElementById('p1grupe').value;
+  const ko=document.getElementById('p1kodas').value;
+  const pr=document.getElementById('p1preke').value;
+  const sa=document.getElementById('p1sandelis').value;
+  const nu=document.getElementById('p1nukr').value;
+  const ju=document.getElementById('p1jud').value;
+  const rows=STOCK.filter(r=>(!gr||r.grupe===gr)&&(!ko||r.kodas===ko)&&(!pr||r.preke===pr)&&(!sa||r.sandelis===sa));
+  const tb=document.getElementById('p1tbody');
+  const nd=document.getElementById('p1nodata');
+  if(!rows.length){tb.innerHTML='';nd.style.display='flex';}
+  else{nd.style.display='none';}
+
+  // Group by unique product, sum kiekis across warehouses
+  const productMap={};
+  rows.forEach(r=>{
+    if(!productMap[r.kodas]){
+      productMap[r.kodas]={kodas:r.kodas,grupe:r.grupe,preke:r.preke,min:r.min,max:r.max,totalKiekis:0,sandelia:[]};
+    }
+    productMap[r.kodas].totalKiekis+=r.kiekis;
+    productMap[r.kodas].sandelia.push({sandelis:r.sandelis,kiekis:r.kiekis});
+  });
+
+  // Sort by bendras kiekis descending
+  const products=Object.values(productMap)
+    .filter(p=>(!nu||calcStatus(p.totalKiekis,p.min,p.max)===nu))
+    .sort((a,b)=>b.totalKiekis-a.totalKiekis);
+
+  // Default: first product expanded
+  const expandedSet=new Set([products[0]?.kodas]);
+
+  function renderMatrix(){
+    let html='';
+    products.forEach(p=>{
+      const isExp=expandedSet.has(p.kodas);
+      const icon=isExp?'▼':'▶';
+      html+=`<tr style="height:36px;border-bottom:1px solid #F0EFED;background:#fff;cursor:pointer;" onclick="toggleRow('${p.kodas}')">
+        <td style="padding:0 6px 0 10px;white-space:nowrap;font-size:11px;color:#0D3D35;width:18px;flex-shrink:0;">${icon}</td>
+        <td style="padding:0 6px;white-space:nowrap;font-size:10px;color:#333;">${p.preke}</td>
+        <td style="padding:0 6px;white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;text-align:right;font-weight:600;color:#0D3D35;">${p.totalKiekis}</td>
+        <td style="padding:0 6px;white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;text-align:right;color:#555;">${p.min}</td>
+      </tr>`;
+      if(isExp){
+        p.sandelia.forEach(s=>{
+          html+=`<tr style="height:36px;border-bottom:1px solid #F0EFED;background:#FAFAFA;">
+            <td style="padding:0;width:18px;"></td>
+            <td style="padding-left:20px;font-size:10px;color:#555;white-space:nowrap;">${s.sandelis}</td>
+            <td style="padding:0 6px;font-size:10px;font-variant-numeric:tabular-nums;text-align:right;color:#333;white-space:nowrap;font-weight:600;">${s.kiekis}</td>
+            <td style="padding:0;"></td>
+          </tr>`;
+        });
+      }
+    });
+    tb.innerHTML=html;
+  }
+
+  window.toggleRow=function(kodas){
+    if(expandedSet.has(kodas)) expandedSet.delete(kodas);
+    else expandedSet.add(kodas);
+    renderMatrix();
+  };
+
+  renderMatrix();
+  // KPI
+  const tr=rows.filter(r=>r.status==='Viršyta').length;
+  const de=rows.filter(r=>r.status==='Dėmesio').length;
+  const no=rows.filter(r=>r.status==='Norma').length;
+  document.getElementById('k1a').textContent=tr;
+  document.getElementById('k2a').textContent=de;
+  document.getElementById('k4a').textContent=no;
+  // Bars — pridedame gr ir ko filtravimą
+  const sanList=sa?[sa]:SANDELIA;
+  document.getElementById('p1bars').innerHTML=sanList.map(s=>{
+    const sr=STOCK.filter(r=>r.sandelis===s&&(!gr||r.grupe===gr)&&(!ko||r.kodas===ko)&&(!pr||r.preke===pr)&&(!nu||r.status===nu));
+    const tot=sr.length||0;
+    const vP=tot?Math.round(sr.filter(r=>r.status==='Viršyta').length/tot*100):0;
+    const dP=tot?Math.round(sr.filter(r=>r.status==='Dėmesio').length/tot*100):0;
+    const lbl=s.replace(' sandėlis','');
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+      <div style="width:72px;text-align:right;font-size:10px;color:#555;flex-shrink:0;">${lbl}</div>
+      <div style="flex:1;border-radius:3px;height:16px;overflow:hidden;display:flex;background:#E0E0E0;">
+        ${vP?`<div style="width:${vP}%;background:#DC2626;display:flex;align-items:center;justify-content:center;"><span style="font-size:9px;color:#fff;padding:0 3px;">${vP>12?'Viršyta':''}</span></div>`:''}
+        ${dP?`<div style="width:${dP}%;background:#D97706;display:flex;align-items:center;justify-content:center;"><span style="font-size:9px;color:#fff;padding:0 3px;">${dP>12?'Dėmesio':''}</span></div>`:''}
+        <div style="flex:1;background:#E0E0E0;display:flex;align-items:center;justify-content:center;"><span style="font-size:9px;color:#999;">Norma</span></div>
+      </div>
+      <div style="width:16px;text-align:right;font-size:10px;color:#555;">${tot}</div>
+    </div>`;
+  }).join('');
+  // Judėjimai — filtruojame pagal gr, ko, sandelis, tipas
+  const mv=MOVES.filter(r=>(!gr||r.grupe===gr)&&(!ko||r.kodas===ko)&&(!pr||r.preke===pr)&&(!ju||r.tipas===ju)&&(!sa||r.sandelis.startsWith(sa.split(' ')[0])));
+  document.getElementById('p1mov').innerHTML=mv.map(r=>`<tr onclick="rowSel(this)">
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.data}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.preke}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.is}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.i}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.tipas}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;font-variant-numeric:tabular-nums;">${r.kiekis}</td></tr>`).join('');
+  // Rekomendacijos — filtruojame pagal gr, ko, preke
+  const rc=RECS.filter(r=>(!gr||r.grupe===gr)&&(!ko||r.kodas===ko)&&(!pr||r.preke===pr));
+  document.getElementById('p1rec').innerHTML=rc.map(r=>`<tr onclick="rowSel(this)">
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.preke}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.is}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;">${r.i}</td>
+    <td style="white-space:nowrap;font-size:10px;padding:6px 6px;font-variant-numeric:tabular-nums;">${r.kiekis}</td></tr>`).join('');
+  // KPI k3 — rekomendacijų skaičius
+  document.getElementById('k3a').textContent=rc.length;
+  p1updateClear();
+}
+
+// ─── P2 ──────────────────────────────────────────────────
+function p2filter(){
+  const gr=document.getElementById('p2grupe').value;
+  const ko=document.getElementById('p2kodas').value;
+  const pr=document.getElementById('p2preke').value;
+  const is=document.getElementById('p2is').value;
+  const ii=document.getElementById('p2i').value;
+  const rz=document.getElementById('p2rez').value;
+  const nu=document.getElementById('p2nukr').value;
+  const rows=P2DATA.filter(r=>(!gr||r.grupe===gr)&&(!ko||r.kodas===ko)&&(!pr||r.preke===pr)&&(!is||r.is===is)&&(!ii||r.i===ii)&&(!rz||r.rez===rz)&&(!nu||r.status===nu));
+  document.getElementById('p2tbody').innerHTML=rows.map(r=>{
+    const st=calcStatus(r.lik,r.min,r.max);
+    return `<tr onclick="rowSel(this)">
+    <td style="white-space:nowrap;font-size:10px;color:#888;">${r.kodas}</td>
+    <td style="white-space:nowrap;font-size:10px;color:#888;">${r.grupe}</td>
+    <td style="white-space:nowrap;font-size:10px;">${r.preke}</td>
+    <td style="white-space:nowrap;font-size:10px;">${r.is}</td>
+    <td style="white-space:nowrap;font-size:10px;">${r.i}</td>
+    <td style="white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;">${r.kiekis}</td>
+    <td style="white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;">${r.lik}</td>
+    <td style="white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;">${r.min}</td>
+    <td style="white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;">${r.max}</td>
+    <td class="${scls(st)}">${slbl(st)}</td></tr>`;}).join('');
+  document.getElementById('p2k1').textContent=rows.length;
+  document.getElementById('p2k2').textContent=rows.filter(r=>r.status==='Viršyta').length;
+  document.getElementById('p2k3').textContent=[...new Set(rows.map(r=>r.is))].length;
+  // Grouped bar — faktinis vs MIN per sandėlis
+  const S=['Sandėlis-1','Sandėlis-2','Sandėlis-3','Sandėlis-4'];
+  const maxVal=400;
+  document.getElementById('p2chart').innerHTML=S.map(s=>{
+    const sr=rows.filter(r=>r.is===s);
+    const faktinis=sr.reduce((a,r)=>a+r.lik,0);
+    const minSum=sr.reduce((a,r)=>a+r.min,0);
+    const fPct=Math.min(Math.round(faktinis/maxVal*100),100);
+    const mPct=Math.min(Math.round(minSum/maxVal*100),100);
+    const belowMin=faktinis<minSum;
+    return `<div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="font-size:10px;color:#555;font-weight:600;">${s}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div style="width:48px;font-size:9px;color:#888;text-align:right;flex-shrink:0;">Faktinis</div>
+        <div style="flex:1;background:#F0EFED;border-radius:3px;height:13px;overflow:hidden;">
+          <div style="width:${fPct}%;height:100%;background:${belowMin?'#DC2626':'#1DB88A'};border-radius:3px;"></div>
+        </div>
+        <div style="width:28px;font-size:10px;color:#333;text-align:right;">${faktinis}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div style="width:48px;font-size:9px;color:#888;text-align:right;flex-shrink:0;">MIN</div>
+        <div style="flex:1;background:#F0EFED;border-radius:3px;height:13px;overflow:hidden;">
+          <div style="width:${mPct}%;height:100%;background:#94A3B8;border-radius:3px;"></div>
+        </div>
+        <div style="width:28px;font-size:10px;color:#333;text-align:right;">${minSum}</div>
+      </div>
+    </div>`;
+  }).join('');
+  p2updateClear();
+}
+
+// ─── P3 ──────────────────────────────────────────────────
+const P3NEATIT=[
+  {kodas:'IT-001',grupe:'IT įranga',preke:'Laptopas Dell XPS 13',sandelis:'Vilniaus sandėlis',likutis:5,min:15,max:40,laikas:'< 3 mėn.',status:'Viršyta'},
+  {kodas:'IT-002',grupe:'IT įranga',preke:'Monitorius LG 27 col.',sandelis:'Kauno sandėlis',likutis:8,min:12,max:35,laikas:'< 3 mėn.',status:'Viršyta'},
+  {kodas:'IT-006',grupe:'IT įranga',preke:'Monitorius Dell 24 col.',sandelis:'Vilniaus sandėlis',likutis:45,min:15,max:40,laikas:'> 2 metai',status:'Dėmesio'},
+  {kodas:'IT-004',grupe:'Periferija',preke:'Ausinės Sony WH-1000XM5',sandelis:'Šiaulių sandėlis',likutis:3,min:8,max:25,laikas:'< 3 mėn.',status:'Viršyta'},
+  {kodas:'IT-008',grupe:'Laikmenos',preke:'Nešiojamas kietasis diskas',sandelis:'Vilniaus sandėlis',likutis:7,min:10,max:30,laikas:'< 3 mėn.',status:'Viršyta'},
+  {kodas:'OF-001',grupe:'Biuro technika',preke:'Spausdintuvas HP LaserJet',sandelis:'Klaipėdos sandėlis',likutis:4,min:5,max:12,laikas:'6–12 mėnesių',status:'Dėmesio'},
+  {kodas:'IT-007',grupe:'Priedai',preke:'USB-C šakotuvas Anker',sandelis:'Kauno sandėlis',likutis:31,min:20,max:60,laikas:'1–2 metai',status:'Dėmesio'},
+  {kodas:'IT-003',grupe:'Periferija',preke:'Klaviatūra Logitech MX',sandelis:'Klaipėdos sandėlis',likutis:22,min:10,max:30,laikas:'6–12 mėnesių',status:'Norma'},
+];
+
+const SVG_XS=[55,99,143,187,231,275,319,363,407,451];
+function p3filter(){
+  const gr=document.getElementById('p3grupe').value;
+  const ko=document.getElementById('p3kodas').value;
+  const pr=document.getElementById('p3preke').value;
+  const sa=document.getElementById('p3sandelis').value;
+  const rows=P3NEATIT.filter(r=>(!gr||r.grupe===gr)&&(!ko||r.kodas===ko)&&(!pr||r.preke===pr)&&(!sa||r.sandelis===sa));
+  document.getElementById('p3tbody').innerHTML=rows.map(r=>{
+    const st=calcStatus(r.likutis,r.min,r.max);
+    return `<tr onclick="rowSel(this)">
+    <td style="white-space:nowrap;font-size:10px;color:#888;">${r.kodas}</td>
+    <td style="white-space:nowrap;font-size:10px;color:#888;">${r.grupe}</td>
+    <td style="white-space:nowrap;font-size:10px;">${r.preke}</td>
+    <td style="white-space:nowrap;font-size:10px;">${r.sandelis.replace(' sandėlis','')}</td>
+    <td style="white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;">${r.likutis}</td>
+    <td style="white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;">${r.min}</td>
+    <td style="white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;">${r.max}</td>
+    <td style="white-space:nowrap;font-size:10px;">${r.laikas}</td>
+    <td class="${scls(st)}">${slbl(st)}</td></tr>`;}).join('');
+  const pert=rows.filter(r=>calcStatus(r.likutis,r.min,r.max)==='Perteklius').length;
+  const truk=rows.filter(r=>calcStatus(r.likutis,r.min,r.max)==='Trūkumas').length;
+  document.getElementById('p3k1').textContent=pert;
+  document.getElementById('p3k2').textContent=truk;
+  document.getElementById('p3k3').textContent=Math.max(0,truk);
+
+  // Statusų pasiskirstymo grafikas
+  const tot=rows.length||1;
+  const nSk=rows.filter(r=>calcStatus(r.likutis,r.min,r.max)==='Norma').length;
+  const dSk=rows.filter(r=>calcStatus(r.likutis,r.min,r.max)==='Perteklius').length;
+  const vSk=rows.filter(r=>calcStatus(r.likutis,r.min,r.max)==='Trūkumas').length;
+  document.getElementById('p3statChart').innerHTML=[
+    {lbl:'✓ Norma',sk:nSk,col:'#1DB88A'},
+    {lbl:'↑ Perteklius',sk:dSk,col:'#D97706'},
+    {lbl:'↓ Trūkumas',sk:vSk,col:'#DC2626'},
+  ].map(({lbl,sk,col})=>`<div style="display:flex;align-items:center;gap:6px;">
+    <div style="width:76px;font-size:10px;color:#555;flex-shrink:0;text-align:right;">${lbl}</div>
+    <div style="flex:1;background:#F0EFED;border-radius:3px;height:16px;overflow:hidden;">
+      <div style="width:${Math.round(sk/tot*100)}%;height:100%;background:${col};border-radius:3px;transition:width .3s;display:flex;align-items:center;justify-content:center;">
+        ${sk>0?`<span style="font-size:9px;color:#fff;font-weight:600;">${sk}</span>`:''}
+      </div>
+    </div>
+    <div style="width:20px;font-size:10px;color:#333;text-align:right;">${sk}</div>
+  </div>`).join('');
+
+  // Atsargų laikas pasiskirstymas
+  const laikasGroups=[
+    {lbl:'< 3 mėn.',col:'#DC2626'},
+    {lbl:'6–12 mėnesių',col:'#D97706'},
+    {lbl:'1–2 metai',col:'#F59E0B'},
+    {lbl:'> 2 metai',col:'#1DB88A'},
+  ];
+  document.getElementById('p3laikasChart').innerHTML=laikasGroups.map(({lbl,col})=>{
+    const sk=rows.filter(r=>r.laikas===lbl).length;
+    return `<div style="display:flex;align-items:center;gap:6px;">
+      <div style="width:72px;font-size:10px;color:#555;flex-shrink:0;text-align:right;">${lbl}</div>
+      <div style="flex:1;background:#F0EFED;border-radius:3px;height:16px;overflow:hidden;">
+        <div style="width:${Math.round(sk/tot*100)}%;height:100%;background:${col};border-radius:3px;display:flex;align-items:center;justify-content:center;">
+          ${sk>0?`<span style="font-size:9px;color:#fff;font-weight:600;">${sk}</span>`:''}
+        </div>
+      </div>
+      <div style="width:20px;font-size:10px;color:#333;text-align:right;">${sk}</div>
+    </div>`;
+  }).join('');
+
+  p3updateClear();
+}
+
+// ─── CLEAR BUTTONS ───────────────────────────────────────
+function p1updateClear(){
+  const active=['p1grupe','p1kodas','p1preke','p1sandelis','p1nukr','p1jud'].some(id=>document.getElementById(id).value!=='');
+  document.getElementById('p1clear').classList.toggle('visible',active);
+}
+function p1clear(){
+  ['p1grupe','p1kodas','p1preke','p1sandelis','p1nukr','p1jud'].forEach(id=>document.getElementById(id).value='');
+  p1filter();
+}
+function p2updateClear(){
+  const active=['p2grupe','p2kodas','p2preke','p2is','p2i','p2rez','p2nukr'].some(id=>document.getElementById(id).value!=='');
+  document.getElementById('p2clear').classList.toggle('visible',active);
+}
+function p2clear(){
+  ['p2grupe','p2kodas','p2preke','p2is','p2i','p2rez','p2nukr'].forEach(id=>document.getElementById(id).value='');
+  p2filter();
+}
+function p3updateClear(){
+  const active=['p3grupe','p3kodas','p3preke','p3sandelis'].some(id=>document.getElementById(id).value!=='');
+  document.getElementById('p3clear').classList.toggle('visible',active);
+}
+function p3clear(){
+  ['p3grupe','p3kodas','p3preke','p3sandelis'].forEach(id=>document.getElementById(id).value='');
+  p3filter();
+}
+
+// ─── NAV ─────────────────────────────────────────────────
+function sp(i){
+  document.querySelectorAll('.page').forEach((p,j)=>p.classList.toggle('active',j===i));
+  document.querySelectorAll('.side-tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+
+// init
+p1filter(); p2filter(); p3filter();
+</script>
+</div><!-- /main -->
+</div><!-- /shell -->
+</body>
+</html>
